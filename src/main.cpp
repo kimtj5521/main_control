@@ -93,9 +93,11 @@ void mainControl::callback_tracking(const std_msgs::String::ConstPtr& msg)
 {
     if(m_bTrackingWPFlag == false){
         m_bTrackingWPFlag = true;
+        std::cout << "start tracking..." << std::endl;
     }
     else{
         m_bTrackingWPFlag = false;
+        std::cout << "stop tracking..." << std::endl;
 
         // should add
         // speed = 0;

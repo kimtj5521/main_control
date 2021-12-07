@@ -4,11 +4,13 @@
 #include <ros/ros.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/String.h>
+#include <std_msgs/Float64.h>
 
 #include <iostream>
 #include <stdio.h>
 #include <math.h>
 #include <malloc.h>
+
 
 class mainControl
 {
@@ -48,7 +50,7 @@ public:
     int m_index;
     double **making_path_node;
     double twoPointDist;
-    double way_point_gap;
+    double way_point_gap; // parameter
 
     bool m_bLoadPathFlag;
     double **path_node;
@@ -57,7 +59,7 @@ public:
     // tracking waypoint variable
     bool m_bTrackingWPFlag;
     int m_curr_index;
-    float m_globalspeed;
+    float m_globalspeed; // parameter
     double distTemp[10];
     double min;
     double controlPointX;
@@ -66,12 +68,14 @@ public:
     double desired_x;
     double desired_y;
 
-    double vd; // velocity desired
-    double Vcmd; // velocity command
-    double thd; // theta desired
+    double m_wheel_base; // parameter
+    int number_Of_Lookahead_Wp; // parameter
+    double acceleration; // parameter
 
-    double m_wheel_base;
-    int number_Of_Lookahead_Wp;
+    double scooter_speed; // km/h
+    double vd;
+    double scooter_steering; // degree
+    
 };
 
 #endif

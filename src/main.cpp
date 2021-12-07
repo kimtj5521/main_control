@@ -23,11 +23,12 @@ mainControl::mainControl()
     m_curr_index = 0;
     m_globalspeed = 0.0;
     distTemp[10] = {0,};
-    Vcmd = 0.0;
-    vd = 0.0;
-    thd = 0.0;
+    
     m_wheel_base = 0.0;
     number_Of_Lookahead_Wp = 0;
+
+    acceleration = 0.0;
+    vd = 0.0;
 }
 
 mainControl::~mainControl()
@@ -99,9 +100,8 @@ void mainControl::callback_tracking(const std_msgs::String::ConstPtr& msg)
         m_bTrackingWPFlag = false;
         std::cout << "stop tracking..." << std::endl;
 
-        // should add
-        // speed = 0;
-        // steering = 0;
+        scooter_speed = 0;
+        scooter_steering = 0;
     }
     
 }
@@ -165,21 +165,24 @@ void mainControl::getDesiredSpeednSteering(double desired_x, double desired_y, d
     // speed
     ///////////////////////////////////////////////////////////
 
+    // km/h -> m/s : /3.6
+    // m/s -> km/h : *3.6
+    // m_globalspeed : km/h
+    // vehicle_speed : m/s
+
     //float k1 = 1;
     double k2 = 3;
-    double HZ = 1/dt;
+    double HZ = 1/dt; // 1/0.01 = 100
 
-    double cmd_velocity = m_globalspeed; // [m/s] @ 20Hz // m_tramSpeed [m/s] from tram
-    double acc = 1; // 1m/ss @ 20Hz
     // error of P-controll
-    double Vcmd_error = cmd_velocity - vehicle_speed/3.6;
+    double Vcmd_error = m_globalspeed/3.6 - vehicle_speed;
 
     // Vel accumulated P-control
-    if(Vcmd_error/HZ > acc/HZ){
-        vd += acc/HZ;
+    if(Vcmd_error/HZ > acceleration/HZ){
+        vd += acceleration/HZ;
     }
-    else if(Vcmd_error/HZ < -acc/HZ){
-        vd += -acc/HZ;
+    else if(Vcmd_error/HZ < -acceleration/HZ){
+        vd += -acceleration/HZ;
     }
     else{
         vd += Vcmd_error;
@@ -188,17 +191,17 @@ void mainControl::getDesiredSpeednSteering(double desired_x, double desired_y, d
     // I-controll
     //vd += Vcmd_error;
     //float Vcmd_buf = m_tramSpeed + k1*Vcmd_error + k2*vd;
-    double Vcmd_buf = vehicle_speed/3.6 + k2*vd;
+    double Vcmd_buf = (vehicle_speed + k2*vd)*3.6;
 
     // Vcmd bound
-    if(Vcmd_buf > cmd_velocity ){
-        Vcmd = cmd_velocity;
+    if(Vcmd_buf > m_globalspeed ){
+        scooter_speed = m_globalspeed;
     }
     else if(Vcmd_buf < 0){
-        Vcmd = 0;
+        scooter_speed = 0;
     }
     else{
-        Vcmd = (int)Vcmd_buf;
+        scooter_speed = Vcmd_buf;
     }
 
     ///////////////////////////////////////////////////////////
@@ -216,8 +219,6 @@ void mainControl::getDesiredSpeednSteering(double desired_x, double desired_y, d
     double d;
     d = sqrt(dxd*dxd + dyd*dyd);
 
-    /* DK code */
-
     double kappa;
     kappa = 2*sin(alpha)/d;
     kappa = fabs(kappa);
@@ -226,10 +227,9 @@ void mainControl::getDesiredSpeednSteering(double desired_x, double desired_y, d
     //const double WB = 1.15;
     //const float SR = 1;
 
-    //thd = atan(kappa*WB*sign_alpha); //thd: vehicle wheel angle
-    thd = atan(kappa*m_wheel_base*sign_alpha); //thd: vehicle wheel angle
-    
-    Vcmd = Vcmd*3.6;    
+    //thd = atan(kappa*WB*sign_alpha);
+    scooter_steering = atan(kappa*m_wheel_base*sign_alpha);
+    scooter_steering = scooter_steering * 180.0/M_PI;
 }
 
 void mainControl::tracking()
@@ -252,7 +252,7 @@ void mainControl::tracking()
                         tmp_idx = k;
                     }
                 }
-                m_globalspeed = 2; // 2m/s
+                // m_globalspeed = 2; // 2m/s
             }
             else
             {
@@ -307,7 +307,7 @@ void mainControl::tracking()
         }
         else
         {
-            // speed = 0;
+            scooter_speed = 0.0;
         }
         
     }
@@ -324,10 +324,17 @@ int main(int argc, char **argv)
     ros::Subscriber sub_making_path = nh.subscribe<std_msgs::String>("/make_path", 10, &mainControl::callback_make_path, &main_ctl);
     ros::Subscriber sub_load_path = nh.subscribe<std_msgs::String>("/load_path", 10, &mainControl::callback_load_path, &main_ctl);
     ros::Subscriber sub_tracking = nh.subscribe<std_msgs::String>("/tracking", 10, &mainControl::callback_tracking, &main_ctl);
+    ros::Publisher pub_scooter_speed = nh.advertise<std_msgs::Float64>("/cmd_scooter_speed", 10);
+    ros::Publisher pub_scooter_steering = nh.advertise<std_msgs::Float64>("/cmd_scooter_steering", 10);
     
+    std_msgs::Float64 msg_scooter_speed;
+    std_msgs::Float64 msg_scooter_steering;
+
     nh.getParam("/wheel_base", main_ctl.m_wheel_base);
     nh.getParam("/number_Of_Lookahead_Wp", main_ctl.number_Of_Lookahead_Wp);
     nh.getParam("/way_point_gap", main_ctl.way_point_gap);
+    nh.getParam("/m_globalspeed", main_ctl.m_globalspeed);
+    nh.getParam("/acceleration", main_ctl.acceleration);
     
     ros::Rate loop_rate(100);
 
@@ -336,7 +343,12 @@ int main(int argc, char **argv)
 
         main_ctl.path_making();
         main_ctl.path_loading();
-        main_ctl.tracking();        
+        main_ctl.tracking();
+        msg_scooter_speed.data = main_ctl.scooter_speed;
+        msg_scooter_steering.data = main_ctl.scooter_steering;
+
+        pub_scooter_speed.publish(msg_scooter_speed);
+        pub_scooter_steering.publish(msg_scooter_steering);
 
         loop_rate.sleep();
     }

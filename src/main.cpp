@@ -106,6 +106,11 @@ void mainControl::callback_tracking(const std_msgs::String::ConstPtr& msg)
     
 }
 
+void mainControl::callback_currIndex_init(const std_msgs::String::ConstPtr& msg)
+{
+    m_curr_index = 0;
+}
+
 void mainControl::path_making()
 {
     if(m_bMakePathFlag == true){
@@ -171,11 +176,14 @@ void mainControl::getDesiredSpeednSteering(double desired_x, double desired_y, d
     // vehicle_speed : m/s
 
     //float k1 = 1;
-    double k2 = 3;
+    double k2 = 0.8;
     double HZ = 1/dt; // 1/0.01 = 100
 
     // error of P-controll
     double Vcmd_error = m_globalspeed/3.6 - vehicle_speed;
+
+    std::cout << "vehicle_speed : " << vehicle_speed << std::endl;
+    std::cout << "Vcmd_error : " << Vcmd_error << std::endl;
 
     // Vel accumulated P-control
     if(Vcmd_error/HZ > acceleration/HZ){
@@ -184,14 +192,28 @@ void mainControl::getDesiredSpeednSteering(double desired_x, double desired_y, d
     else if(Vcmd_error/HZ < -acceleration/HZ){
         vd += -acceleration/HZ;
     }
+    // else if (Vcmd_error/HZ < 0){
+    //     vd += 0;
+    // }
     else{
-        vd += Vcmd_error;
+        vd += Vcmd_error/HZ;
+        std::cout << "slow..........." << std::endl;
     }
+
+    if(vd < -0.3 ){
+        vd = -0.3;
+    }
+
+    //vd += Vcmd_error/HZ;
+
+    std::cout << "vd : " << vd << std::endl;
 
     // I-controll
     //vd += Vcmd_error;
     //float Vcmd_buf = m_tramSpeed + k1*Vcmd_error + k2*vd;
     double Vcmd_buf = (vehicle_speed + k2*vd)*3.6;
+
+    std::cout << "Vcmd_buf : " << Vcmd_buf << std::endl;
 
     // Vcmd bound
     if(Vcmd_buf > m_globalspeed ){
@@ -203,6 +225,9 @@ void mainControl::getDesiredSpeednSteering(double desired_x, double desired_y, d
     else{
         scooter_speed = Vcmd_buf;
     }
+
+    std::cout << "After bound cut scooter_speed : " << scooter_speed << std::endl;
+    std::cout << "--------------------------" << std::endl;
 
     ///////////////////////////////////////////////////////////
     // steering
@@ -269,7 +294,9 @@ void mainControl::tracking()
                         }
                     }
                     if(m_curr_index >= (m_index-3)){
-                        m_globalspeed = 0;
+                        //m_globalspeed = 0;
+                        scooter_speed = 0;
+                        return;
                     }
                 }
                 else{
@@ -288,6 +315,7 @@ void mainControl::tracking()
 
             m_curr_index = m_curr_index + tmp_idx; // current vehicle position is tempIndex Way-point
             std::cout << "curr index: " << m_curr_index << std::endl;
+            std::cout << "tmp_idx: " << tmp_idx << std::endl;
             
             ///////////////////////////////////////////////////////
             if((m_curr_index + number_Of_Lookahead_Wp) > (m_index-1)){
@@ -326,6 +354,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_tracking = nh.subscribe<std_msgs::String>("/tracking", 10, &mainControl::callback_tracking, &main_ctl);
     ros::Publisher pub_scooter_speed = nh.advertise<std_msgs::Float64>("/cmd_scooter_speed", 10);
     ros::Publisher pub_scooter_steering = nh.advertise<std_msgs::Float64>("/cmd_scooter_steering", 10);
+    ros::Subscriber sub_currIndex_init = nh.subscribe("/init", 10, &mainControl::callback_currIndex_init, &main_ctl);
     
     std_msgs::Float64 msg_scooter_speed;
     std_msgs::Float64 msg_scooter_steering;

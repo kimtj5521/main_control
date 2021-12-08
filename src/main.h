@@ -22,6 +22,7 @@ public:
     void callback_make_path(const std_msgs::String::ConstPtr& msg);
     void callback_load_path(const std_msgs::String::ConstPtr& msg);
     void callback_tracking(const std_msgs::String::ConstPtr& msg);
+    void callback_currIndex_init(const std_msgs::String::ConstPtr& msg);
     void path_making();
     void path_loading();
     void tracking();

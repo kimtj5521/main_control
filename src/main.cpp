@@ -156,6 +156,18 @@ void mainControl::path_loading()
                 if(fscanf(pFileWayPointLoad, "%d %lf %lf %lf", &index_, &path_node[k][0], &path_node[k][1], &path_node[k][2]) == EOF){
                     break;
                 }
+
+                geometry_msgs::Quaternion path_quat = tf::createQuaternionMsgFromYaw(path_node[k][2]*M_PI/180.0);
+
+                pose_stamped.header.frame_id = "odom";
+                pose_stamped.header.stamp = ros::Time::now();
+                pose_stamped.pose.position.x = path_node[k][0];
+                pose_stamped.pose.position.y = path_node[k][1];
+                pose_stamped.pose.position.z = 0.0;
+                pose_stamped.pose.orientation = path_quat;
+
+                path.header = pose_stamped.header;
+                path.poses.push_back(pose_stamped);
             }
         }
 
@@ -355,6 +367,7 @@ int main(int argc, char **argv)
     ros::Publisher pub_scooter_speed = nh.advertise<std_msgs::Float64>("/cmd_scooter_speed", 10);
     ros::Publisher pub_scooter_steering = nh.advertise<std_msgs::Float64>("/cmd_scooter_steering", 10);
     ros::Subscriber sub_currIndex_init = nh.subscribe("/init", 10, &mainControl::callback_currIndex_init, &main_ctl);
+    ros::Publisher pub_path = nh.advertise<nav_msgs::Path>("/path", 1000);
     
     std_msgs::Float64 msg_scooter_speed;
     std_msgs::Float64 msg_scooter_steering;
@@ -378,6 +391,7 @@ int main(int argc, char **argv)
 
         pub_scooter_speed.publish(msg_scooter_speed);
         pub_scooter_steering.publish(msg_scooter_steering);
+        pub_path.publish(main_ctl.path);
 
         loop_rate.sleep();
     }

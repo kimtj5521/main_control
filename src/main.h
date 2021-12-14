@@ -5,6 +5,9 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float64.h>
+#include <nav_msgs/Path.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <tf/transform_datatypes.h>
 
 #include <iostream>
 #include <stdio.h>
@@ -56,6 +59,9 @@ public:
     bool m_bLoadPathFlag;
     double **path_node;
     int nr_data;
+
+    geometry_msgs::PoseStamped pose_stamped;
+    nav_msgs::Path path;
 
     // tracking waypoint variable
     bool m_bTrackingWPFlag;

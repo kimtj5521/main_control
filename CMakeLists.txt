@@ -7,11 +7,14 @@ project(main_control)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  nav_msgs
+  geometry_msgs
+  tf
 )
 
 catkin_package(
   LIBRARIES main_control
-  CATKIN_DEPENDS roscpp std_msgs
+  CATKIN_DEPENDS roscpp std_msgs nav_msgs geometry_msgs
 )
 
 include_directories(

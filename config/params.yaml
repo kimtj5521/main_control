@@ -1,5 +1,5 @@
 way_point_gap: 0.5 # meter
 number_Of_Lookahead_Wp: 5
 wheel_base: 0.87 # meter
-m_globalspeed: 3.6 # km/h
+m_globalspeed: 2.5 # km/h
 acceleration: 0.3 # m/s^2
